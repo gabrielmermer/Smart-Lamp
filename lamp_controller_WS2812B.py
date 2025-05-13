@@ -11,8 +11,8 @@ BUTTON_COLOR = 27
 BUTTON_MODE = 22
 POTENTIOMETER_CHANNEL = 0  # MCP3008 channel for potentiometer
 
-# === LED Strip Setup ===
-LED_COUNT = 60  # 60 LEDs in the strip
+# === LED Strip Setup === for WS2812B
+LED_COUNT = 60  # 60 LEDs in the strip , ( put count due to amount of LED pins in short cut strip)
 LED_PIN = 18  # GPIO pin for the LED data line
 
 # === State Variables ===
@@ -92,7 +92,7 @@ def auto_mode_loop():
             time.sleep(0.5)
 
 # === Brightness Control Thread ===
-def brightness_loop():
+def brightness_loop(): ## auto mode is on
     while True:
         adc_value = read_adc(POTENTIOMETER_CHANNEL)
         state["brightness"] = int((adc_value / 1023) * 100)
