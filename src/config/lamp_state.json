@@ -1,0 +1,32 @@
+{
+  "is_on": false,
+  "brightness": 80,
+  "color": {
+    "r": 255,
+    "g": 255,
+    "b": 255
+  },
+  "mode": "manual",
+  "auto_mode_enabled": false,
+  "environmental_alerts_enabled": true,
+  "volume": 0.7,
+  "current_audio": null,
+  "last_interaction": null,
+  "usage_stats": {
+    "total_on_time_hours": 0,
+    "interactions_today": 0,
+    "last_auto_action": null
+  },
+  "environmental_data": {
+    "last_earthquake_check": null,
+    "last_air_quality_check": null,
+    "last_temperature_check": null,
+    "current_temperature": null,
+    "current_air_quality": null
+  },
+  "ml_data": {
+    "model_last_trained": null,
+    "prediction_accuracy": null,
+    "data_points_collected": 0
+  }
+}

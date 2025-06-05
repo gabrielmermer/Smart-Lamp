@@ -1,38 +1,89 @@
-# Core Python packages
-asyncio-mqtt==0.16.1
-python-dotenv==1.0.0
+# requirements.txt - Smart Lamp Project Dependencies
 
-# Raspberry Pi GPIO and Hardware
-RPi.GPIO==0.7.1
-spidev==3.6
-adafruit-circuitpython-mcp3xxx==1.4.13
+# =============================================================================
+# CORE PYTHON LIBRARIES
+# =============================================================================
+python-dotenv==1.0.0              # Environment variable management
+pathlib2==2.3.7                   # Enhanced path handling (Python <3.4 compat)
 
-# Web Framework
-streamlit==1.28.1
-plotly==5.17.0
+# =============================================================================
+# RASPBERRY PI HARDWARE LIBRARIES
+# =============================================================================
+RPi.GPIO==0.7.1                   # Raspberry Pi GPIO control
+spidev==3.6                       # SPI interface for MCP3008 ADC
+rpi-ws281x==5.0.0                  # Addressable LED strip control (NeoPixel)
 
-# HTTP Requests and APIs
-requests==2.31.0
-aiohttp==3.9.1
+# Adafruit CircuitPython Libraries
+adafruit-circuitpython-mcp3xxx==1.4.14     # MCP3008 ADC interface
+adafruit-circuitpython-neopixel==6.3.11    # Alternative NeoPixel control
 
-# Machine Learning
-scikit-learn==1.3.2
-pandas==2.1.4
-numpy==1.24.4
-joblib==1.3.2
+# =============================================================================
+# WEB FRAMEWORK (STREAMLIT DASHBOARD)
+# =============================================================================
+streamlit==1.28.1                 # Web dashboard framework
+plotly==5.17.0                    # Interactive data visualization
+streamlit-option-menu==0.3.6      # Enhanced UI components for Streamlit
 
-# Audio Processing
-pygame==2.5.2
+# =============================================================================
+# HTTP REQUESTS AND API CLIENTS
+# =============================================================================
+requests==2.31.0                  # HTTP requests for external APIs
+aiohttp==3.9.1                    # Async HTTP client
+urllib3==2.1.0                    # HTTP client (requests dependency)
 
-# Database
-sqlite3
-sqlalchemy==2.0.23
+# =============================================================================
+# MACHINE LEARNING AND DATA SCIENCE
+# =============================================================================
+scikit-learn==1.3.2               # Machine learning algorithms (SVM)
+pandas==2.1.4                     # Data manipulation and analysis
+numpy==1.24.4                     # Numerical computing
+joblib==1.3.2                     # Model serialization and parallel processing
 
-# Utilities and Helpers
-colorama==0.4.6
-pydantic==2.5.2
-typing-extensions==4.8.0
+# =============================================================================
+# AUDIO PROCESSING AND PLAYBACK
+# =============================================================================
+pygame==2.5.2                     # Audio playback and game development
+pydub==0.25.1                     # Audio file manipulation
+pyaudio==0.2.11                   # Audio I/O (may require system packages)
 
-# Development and Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+# =============================================================================
+# DATABASE AND DATA STORAGE
+# =============================================================================
+# sqlite3 is built into Python, no external package needed
+
+# =============================================================================
+# SYSTEM MONITORING AND UTILITIES
+# =============================================================================
+psutil==5.9.6                     # System and process monitoring
+colorama==0.4.6                   # Cross-platform colored terminal text
+
+# =============================================================================
+# LOGGING AND DEBUGGING
+# =============================================================================
+loguru==0.7.2                     # Enhanced logging (alternative to built-in)
+
+# =============================================================================
+# DATA VALIDATION AND SERIALIZATION
+# =============================================================================
+pydantic==2.5.2                   # Data validation and settings management
+ujson==5.8.0                      # Ultra-fast JSON encoder/decoder
+python-dateutil==2.8.2            # Date/time parsing and manipulation
+
+# =============================================================================
+# DEVELOPMENT AND TESTING
+# =============================================================================
+pytest==7.4.3                     # Testing framework
+pytest-asyncio==0.21.1            # Async testing support
+black==23.11.0                    # Code formatter
+flake8==6.1.0                     # Code linting and style checking
+isort==5.12.0                     # Import sorting
+
+# =============================================================================
+# ASYNC AND CONCURRENCY
+# =============================================================================
+# asyncio is built into Python 3.4+, no external package needed
+
+# =============================================================================
+# SECURITY AND AUTHENTICATION
+# =============================================================================
+cryptography==41.0.7              # Cryptographic operations (if needed)
