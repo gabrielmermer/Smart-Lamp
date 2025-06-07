@@ -1,0 +1,42 @@
+# Core Python packages
+numpy==1.24.3
+pandas==2.0.3
+python-dotenv==1.0.0
+
+# Raspberry Pi GPIO and Hardware
+RPi.GPIO==0.7.1
+spidev==3.6
+gpiozero==1.6.2
+adafruit-circuitpython-mcp3xxx==1.4.14
+adafruit-blinka==8.20.0
+
+# LED Control
+rpi-ws281x==4.3.4
+adafruit-circuitpython-neopixel==6.3.9
+
+# API and Web Requests
+requests==2.31.0
+urllib3==2.0.4
+
+# Audio and Sound
+pygame==2.5.0
+pydub==0.25.1
+vlc-python==3.0.18121
+
+# Machine Learning
+scikit-learn==1.3.0
+joblib==1.3.1
+
+# Database (Local SQLite only)
+# sqlite3 is built-in to Python, no need to install
+
+# Web Interface (Streamlit)
+streamlit==1.25.0
+plotly==5.15.0
+altair==5.0.1
+
+# No cloud dependencies - keeping it local and simple!
+
+# Additional utilities
+schedule==1.2.0
+psutil==5.9.5
