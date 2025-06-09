@@ -232,7 +232,11 @@ class SmartLampApp:
         print(f"   • Log file: {settings.LOG_FILE_PATH}")
         print(f"   • ML model: {settings.ML_MODEL_PATH}")
         print(f"   • Web port: {settings.STREAMLIT_PORT}")
-        print(f"   • LED Strip: GPIO 18, {settings.LED_STRIP_COUNT} pixels (NeoPixel)")
+        
+        # LED Strip info (if available)
+        led_count = getattr(settings, 'LED_STRIP_COUNT', 30)
+        print(f"   • LED Strip: GPIO 18, {led_count} pixels (NeoPixel)")
+        
         print(f"   • Debug mode: {self.debug}")
         print(f"   • Web interface: {'Enabled' if self.enable_web else 'Disabled'}")
         
