@@ -599,7 +599,7 @@ def render_custom_analytics(self):
 | **Gabriel Mermer** | 12250003 | 🏗️ **Project Lead & Hardware** | System architecture, hardware design, integration |
 | **Khamidova Leyla** | 12204514 | 🌡️ **Environmental & Audio** | Temperature monitoring, audio features, soundscapes |
 | **Chaw Khin Su** | 12230339 | 🎛️ **Hardware Controls** | Manual input/output, GPIO control, physical interface |
-| **Shokulov Shohruh** | 12225260 | 🤖 **Machine Learning** | Pattern recognition, user behavior analysis, predictions |
+| **Shokulov Shohruh** | 12225260 | 🤖 **Machine Learning** | Pattern recognition, user behavior analysis, predictions, database, real-time dashboard, code base structure, README, environment files |
 | **Kakhorjonov Mansurbek** | 12225248 | 🌍 **Sensor Integration** | API integration, earthquake/air quality monitoring |
 
 **📧 Contact**: shoqulovshohruh@inha.edu
