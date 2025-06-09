@@ -3,9 +3,10 @@
 import time
 import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+from src.hardware import HardwareController
+
 
 try:
     import board
@@ -17,7 +18,6 @@ except ImportError:
     print("NeoPixel libraries not available. Install with:")
     print("sudo pip3 install adafruit-circuitpython-neopixel")
 
-from src.hardware import HardwareController
 
 def test_team_leader_setup():
     """Test using the same approach as your team leader"""
