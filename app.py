@@ -1,8 +1,9 @@
 """
-Smart Lamp Web Dashboard
+Smart Lamp Web Dashboard - Real-time Hardware Control
 
 Streamlit web interface for monitoring and controlling the Smart Lamp.
-Works on any system with demo data when not on Raspberry Pi.
+Compatible with team leader's NeoPixel setup (GPIO 18, 30 LEDs).
+Works with real hardware or demo data when not on Raspberry Pi.
 
 Access: http://localhost:8501
 """
@@ -15,8 +16,12 @@ import time
 import random
 import json
 import os
+import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
+
+# Add src directory to path for hardware control
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # Page configuration
 st.set_page_config(
@@ -28,6 +33,140 @@ st.set_page_config(
 
 # Check if running on Raspberry Pi
 RASPBERRY_PI = os.path.exists('/sys/class/thermal/thermal_zone0/temp')
+
+# Try to import real hardware controllers
+try:
+    if RASPBERRY_PI:
+        from src.lamp import LampController
+        from src.sensors import SensorManager
+        from src.ml import MLManager
+        from src.database import DatabaseManager
+        from src.utils import Utils
+        REAL_HARDWARE = True
+    else:
+        REAL_HARDWARE = False
+except ImportError:
+    REAL_HARDWARE = False
+
+class RealHardwareManager:
+    """Real hardware interface for Raspberry Pi"""
+    
+    def __init__(self):
+        if REAL_HARDWARE:
+            self.lamp_controller = LampController()
+            self.sensors = SensorManager()
+            self.ml = MLManager()
+            self.db = DatabaseManager()
+            self.utils = Utils()
+            
+            # Start hardware automation
+            self.lamp_controller.start_automation()
+            self.sensors.start_monitoring()
+            
+            # Load real state
+            self._load_real_state()
+        else:
+            self.lamp_controller = None
+    
+    def _load_real_state(self):
+        """Load actual lamp state from hardware"""
+        if self.lamp_controller:
+            status = self.lamp_controller.get_status()
+            st.session_state.lamp_state = {
+                'is_on': status['lamp']['is_on'],
+                'current_color': list(status['lamp']['current_color']),
+                'current_brightness': status['lamp']['current_brightness'],
+                'mode': status['lamp']['mode'],
+                'last_update': datetime.now().isoformat()
+            }
+    
+    def control_power(self, turn_on: bool):
+        """Control lamp power"""
+        if self.lamp_controller:
+            if turn_on:
+                color = st.session_state.lamp_state['current_color']
+                self.lamp_controller.turn_on(tuple(color))
+            else:
+                self.lamp_controller.turn_off()
+            
+            # Log action
+            action = "TURN_ON" if turn_on else "TURN_OFF"
+            color = tuple(st.session_state.lamp_state['current_color']) if turn_on else None
+            brightness = st.session_state.lamp_state['current_brightness'] if turn_on else None
+            self.db.log_user_action(action, color, brightness)
+            
+            return True
+        return False
+    
+    def control_color(self, r: int, g: int, b: int):
+        """Control lamp color"""
+        if self.lamp_controller:
+            self.lamp_controller.set_color(r, g, b)
+            
+            # Log action
+            if st.session_state.lamp_state['is_on']:
+                self.db.log_user_action("COLOR_CHANGE", (r, g, b), st.session_state.lamp_state['current_brightness'])
+            
+            return True
+        return False
+    
+    def control_brightness(self, brightness: int):
+        """Control lamp brightness"""
+        if self.lamp_controller:
+            self.lamp_controller.set_brightness(brightness)
+            return True
+        return False
+    
+    def control_mode(self, mode: str):
+        """Control lamp mode"""
+        if self.lamp_controller:
+            self.lamp_controller.mode = mode
+            return True
+        return False
+    
+    def rainbow_effect(self):
+        """Trigger rainbow effect"""
+        if self.lamp_controller and hasattr(self.lamp_controller.hardware, 'rainbow_cycle'):
+            self.lamp_controller.hardware.rainbow_cycle(wait_ms=50, cycles=2)
+            return True
+        return False
+    
+    def get_environmental_data(self):
+        """Get real environmental data"""
+        if self.sensors:
+            return self.sensors.get_all_data()
+        return None
+    
+    def get_ml_data(self):
+        """Get real ML predictions"""
+        if self.ml:
+            return {
+                'status': self.ml.get_status(),
+                'predictions': self.ml.get_predictions_for_day() if self.ml.can_start_prediction() else [],
+                'current_prediction': self.ml.should_auto_adjust() if self.ml.can_start_prediction() else (False, {}),
+                'interactions': self.db.get_user_patterns(7) if self.db else []
+            }
+        return None
+    
+    def get_system_info(self):
+        """Get real system information"""
+        if self.utils and self.db:
+            return {
+                'database_stats': self.db.get_stats(),
+                'system_resources': self.utils.get_system_info(),
+                'configuration': {
+                    'ml_learning_period': 7,
+                    'earthquake_threshold': 5.5,
+                    'air_quality_threshold': 100,
+                    'api_configured': True
+                }
+            }
+        return None
+    
+    def cleanup(self):
+        """Cleanup hardware resources"""
+        if self.lamp_controller:
+            self.lamp_controller.cleanup()
 
 class DemoDataGenerator:
     """Generate realistic demo data for development/demo purposes"""
@@ -238,16 +377,26 @@ class DemoDataGenerator:
         }
 
 class SmartLampDashboard:
-    """Main dashboard class"""
+    """Main dashboard class with real hardware control"""
     
     def __init__(self):
         self.demo_data = DemoDataGenerator()
+        
+        # Initialize hardware manager
+        if REAL_HARDWARE:
+            if 'hardware_manager' not in st.session_state:
+                st.session_state.hardware_manager = RealHardwareManager()
+            self.hardware = st.session_state.hardware_manager
+        else:
+            self.hardware = None
         
     def render_header(self):
         """Render page header with status"""
         st.title("🏮 Smart Lamp Dashboard")
         
-        if not RASPBERRY_PI:
+        if REAL_HARDWARE:
+            st.success("🍓 **Real Hardware Mode** - Connected to Smart Lamp on Raspberry Pi")
+        else:
             st.info("🖥️ **Demo Mode** - Running on development system with simulated data")
         
         st.markdown("---")
@@ -274,8 +423,13 @@ class SmartLampDashboard:
             st.metric("Current Time", datetime.now().strftime("%H:%M:%S"))
     
     def render_lamp_controls(self):
-        """Render lamp control panel"""
+        """Render lamp control panel with real hardware control"""
         st.subheader("🎛️ Lamp Controls")
+        
+        if REAL_HARDWARE:
+            st.info("🔗 **Real-time Hardware Control** - Changes will be applied to physical lamp")
+        else:
+            st.warning("📺 **Demo Mode** - Controls are simulated")
         
         lamp_state = self.demo_data.get_lamp_state()
         
@@ -287,7 +441,18 @@ class SmartLampDashboard:
             current_state = lamp_state['is_on']
             
             if st.button("🔴 Turn OFF" if current_state else "🟢 Turn ON", key="power_btn"):
-                st.session_state.lamp_state['is_on'] = not current_state
+                new_state = not current_state
+                
+                # Control real hardware
+                if self.hardware:
+                    success = self.hardware.control_power(new_state)
+                    if success:
+                        st.success(f"✅ Lamp turned {'ON' if new_state else 'OFF'}")
+                    else:
+                        st.error("❌ Failed to control lamp")
+                
+                # Update state
+                st.session_state.lamp_state['is_on'] = new_state
                 st.session_state.lamp_state['last_update'] = datetime.now().isoformat()
                 st.rerun()
             
@@ -298,6 +463,12 @@ class SmartLampDashboard:
                                   index=0 if current_mode == "MANUAL" else 1)
             
             if new_mode != current_mode:
+                # Control real hardware
+                if self.hardware:
+                    success = self.hardware.control_mode(new_mode)
+                    if success:
+                        st.success(f"✅ Mode changed to {new_mode}")
+                
                 st.session_state.lamp_state['mode'] = new_mode
                 st.rerun()
         
@@ -314,6 +485,12 @@ class SmartLampDashboard:
             rgb_color = [int(hex_color[i:i+2], 16) for i in (0, 2, 4)]
             
             if rgb_color != current_color:
+                # Control real hardware
+                if self.hardware:
+                    success = self.hardware.control_color(*rgb_color)
+                    if success:
+                        st.success(f"✅ Color changed to RGB{tuple(rgb_color)}")
+                
                 st.session_state.lamp_state['current_color'] = rgb_color
                 st.session_state.lamp_state['last_update'] = datetime.now().isoformat()
             
@@ -324,6 +501,12 @@ class SmartLampDashboard:
             new_brightness = st.slider("Brightness", 0, 100, current_brightness)
             
             if new_brightness != current_brightness:
+                # Control real hardware
+                if self.hardware:
+                    success = self.hardware.control_brightness(new_brightness)
+                    if success:
+                        st.success(f"✅ Brightness set to {new_brightness}%")
+                
                 st.session_state.lamp_state['current_brightness'] = new_brightness
                 st.session_state.lamp_state['last_update'] = datetime.now().isoformat()
         
@@ -343,9 +526,47 @@ class SmartLampDashboard:
         for i, (name, color) in enumerate(presets):
             with preset_cols[i]:
                 if st.button(name, key=f"preset_{i}"):
+                    # Control real hardware
+                    if self.hardware:
+                        success = self.hardware.control_color(*color)
+                        if success:
+                            st.success(f"✅ {name} applied")
+                    
                     st.session_state.lamp_state['current_color'] = color
                     st.session_state.lamp_state['last_update'] = datetime.now().isoformat()
                     st.rerun()
+        
+        # Special effects
+        st.write("**Special Effects**")
+        effect_cols = st.columns(3)
+        
+        with effect_cols[0]:
+            if st.button("🌈 Rainbow Effect"):
+                if self.hardware:
+                    success = self.hardware.rainbow_effect()
+                    if success:
+                        st.success("🌈 Rainbow effect activated!")
+                    else:
+                        st.info("🌈 Rainbow effect simulated")
+                else:
+                    st.info("🌈 Rainbow effect simulated")
+        
+        with effect_cols[1]:
+            if st.button("✨ Blink Effect"):
+                if self.hardware and self.hardware.lamp_controller:
+                    r, g, b = lamp_state['current_color']
+                    self.hardware.lamp_controller.hardware.blink_leds(r, g, b, times=3, interval=0.3)
+                    st.success("✨ Blink effect activated!")
+                else:
+                    st.info("✨ Blink effect simulated")
+        
+        with effect_cols[2]:
+            if st.button("🎵 Sound Alert"):
+                if self.hardware and self.hardware.lamp_controller:
+                    self.hardware.lamp_controller.hardware.play_alert_sound(1.0)
+                    st.success("🎵 Sound alert played!")
+                else:
+                    st.info("🎵 Sound alert simulated")
         
         # Current color display
         st.write("**Current Color Preview**")
@@ -358,16 +579,33 @@ class SmartLampDashboard:
             border-radius: 10px;
             border: 2px solid #ddd;
             margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         "></div>
         """, unsafe_allow_html=True)
         
-        st.write(f"RGB({r}, {g}, {b})")
+        st.write(f"**RGB({r}, {g}, {b})**")
+        
+        # Real-time status
+        if REAL_HARDWARE:
+            st.write("**Hardware Status**")
+            st.success("🔗 Connected to NeoPixel strip (GPIO 18, 30 LEDs)")
+            st.success("🎛️ Physical buttons monitoring active")
+            st.success("🌡️ Environmental sensors active")
     
     def render_environmental_dashboard(self):
         """Render environmental monitoring"""
         st.subheader("🌍 Environmental Monitoring")
         
-        env_data = self.demo_data.get_environmental_data()
+        # Get real or demo environmental data
+        if self.hardware:
+            env_data = self.hardware.get_environmental_data()
+            if env_data is None:
+                env_data = self.demo_data.get_environmental_data()
+                st.warning("⚠️ Using demo environmental data")
+            else:
+                st.success("✅ Real-time environmental data")
+        else:
+            env_data = self.demo_data.get_environmental_data()
         
         tab1, tab2, tab3, tab4 = st.tabs(["🌡️ Weather", "🌬️ Air Quality", "🌪️ Earthquakes", "📻 Radio"])
         
@@ -511,6 +749,10 @@ class SmartLampDashboard:
         """Render earthquake information"""
         st.write("**Recent Earthquake Monitoring**")
         
+    def render_earthquake_tab(self, earthquake_data):
+        """Render earthquake information"""
+        st.write("**Recent Earthquake Monitoring**")
+        
         significant_earthquakes = earthquake_data['significant_earthquakes']
         total_earthquakes = earthquake_data['total_earthquakes']
         
@@ -559,10 +801,28 @@ class SmartLampDashboard:
                     st.success(f"🎵 Now playing: {station['name']}")
     
     def render_ml_dashboard(self):
-        """Render ML predictions and patterns"""
+        """Render ML predictions and patterns with real data"""
         st.subheader("🤖 Machine Learning & Patterns")
         
-        ml_data = self.demo_data.get_ml_predictions()
+        # Get real or demo ML data
+        if self.hardware:
+            ml_data_raw = self.hardware.get_ml_data()
+            if ml_data_raw:
+                ml_data = {
+                    'is_trained': ml_data_raw['status']['is_trained'],
+                    'model_accuracy': ml_data_raw['status']['model_accuracy'],
+                    'data_points': ml_data_raw['status']['data_points'],
+                    'can_predict': ml_data_raw['status']['can_predict'],
+                    'daily_predictions': ml_data_raw['predictions'],
+                    'current_prediction': ml_data_raw['current_prediction'],
+                    'interactions': ml_data_raw['interactions']
+                }
+                st.success("✅ Real ML predictions from trained model")
+            else:
+                ml_data = self.demo_data.get_ml_predictions()
+                st.warning("⚠️ Using demo ML data")
+        else:
+            ml_data = self.demo_data.get_ml_predictions()
         
         # ML Status Overview
         col1, col2, col3, col4 = st.columns(4)
@@ -589,8 +849,18 @@ class SmartLampDashboard:
         
         with pred_col1:
             st.write("**Power Prediction**")
-            power_pred = ml_data['current_power_prediction']
-            power_conf = ml_data['power_confidence']
+            
+            if 'current_prediction' in ml_data and ml_data['current_prediction'][0]:
+                prediction_data = ml_data['current_prediction'][1]
+                if 'power' in prediction_data:
+                    power_pred = prediction_data['power']['state']
+                    power_conf = prediction_data['power']['confidence']
+                else:
+                    power_pred = ml_data.get('current_power_prediction', False)
+                    power_conf = ml_data.get('power_confidence', 0.5)
+            else:
+                power_pred = ml_data.get('current_power_prediction', False)
+                power_conf = ml_data.get('power_confidence', 0.5)
             
             power_status = "🟢 Should be ON" if power_pred else "🔴 Should be OFF"
             st.write(f"• Status: {power_status}")
@@ -605,8 +875,18 @@ class SmartLampDashboard:
         
         with pred_col2:
             st.write("**Color Prediction**")
-            color_pred = ml_data['current_color_prediction']
-            color_conf = ml_data['color_confidence']
+            
+            if 'current_prediction' in ml_data and ml_data['current_prediction'][0]:
+                prediction_data = ml_data['current_prediction'][1]
+                if 'color' in prediction_data:
+                    color_pred = prediction_data['color']['rgb']
+                    color_conf = prediction_data['color']['confidence']
+                else:
+                    color_pred = ml_data.get('current_color_prediction', (255, 255, 255))
+                    color_conf = ml_data.get('color_confidence', 0.5)
+            else:
+                color_pred = ml_data.get('current_color_prediction', (255, 255, 255))
+                color_conf = ml_data.get('color_confidence', 0.5)
             
             r, g, b = color_pred
             st.markdown(f"""
@@ -624,60 +904,71 @@ class SmartLampDashboard:
         # 24-hour Predictions Chart
         st.write("**📊 24-Hour Predictions**")
         
-        daily_predictions = ml_data['daily_predictions']
+        daily_predictions = ml_data.get('daily_predictions', [])
         
-        hours = [pred['hour'] for pred in daily_predictions]
-        power_probs = [pred['power_confidence'] if pred['should_be_on'] else -pred['power_confidence'] 
-                     for pred in daily_predictions]
-        
-        # Create prediction chart
-        fig = go.Figure()
-        
-        fig.add_trace(go.Scatter(
-            x=hours,
-            y=power_probs,
-            mode='lines+markers',
-            name='Power Prediction',
-            line=dict(color='blue'),
-            fill='tonexty'
-        ))
-        
-        fig.add_hline(y=0, line_dash="dash", line_color="gray")
-        
-        fig.update_layout(
-            title="24-Hour Power Predictions",
-            xaxis_title="Hour of Day",
-            yaxis_title="Prediction Confidence",
-            yaxis=dict(tickformat='.0%'),
-            height=400
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        if daily_predictions:
+            hours = [pred['hour'] for pred in daily_predictions]
+            power_probs = [pred['power_confidence'] if pred['should_be_on'] else -pred['power_confidence'] 
+                         for pred in daily_predictions]
+            
+            # Create prediction chart
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
+                x=hours,
+                y=power_probs,
+                mode='lines+markers',
+                name='Power Prediction',
+                line=dict(color='blue'),
+                fill='tonexty'
+            ))
+            
+            fig.add_hline(y=0, line_dash="dash", line_color="gray")
+            
+            fig.update_layout(
+                title="24-Hour Power Predictions",
+                xaxis_title="Hour of Day",
+                yaxis_title="Prediction Confidence",
+                yaxis=dict(tickformat='.0%'),
+                height=400
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
         
         # User Interaction History
         st.write("**📈 User Interaction History**")
         
-        interactions = self.demo_data.get_user_interactions()
+        interactions = ml_data.get('interactions', [])
+        
+        if not interactions:
+            interactions = self.demo_data.get_user_interactions()
         
         if interactions:
             # Convert to DataFrame for analysis
             df = pd.DataFrame(interactions)
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            
-            # Action count by hour
-            hourly_actions = df.groupby(['hour', 'action']).size().reset_index(name='count')
-            
-            fig = px.bar(hourly_actions, x='hour', y='count', color='action',
-                        title='User Actions by Hour of Day',
-                        labels={'hour': 'Hour of Day', 'count': 'Number of Actions'})
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Recent interactions table
-            st.write("**Recent Interactions**")
-            recent_df = df.head(10)[['timestamp', 'action', 'brightness']].copy()
-            recent_df['timestamp'] = recent_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
-            st.dataframe(recent_df, use_container_width=True)
+            if 'timestamp' in df.columns:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                
+                # Action count by hour
+                if 'hour' in df.columns and 'action' in df.columns:
+                    hourly_actions = df.groupby(['hour', 'action']).size().reset_index(name='count')
+                    
+                    fig = px.bar(hourly_actions, x='hour', y='count', color='action',
+                                title='User Actions by Hour of Day',
+                                labels={'hour': 'Hour of Day', 'count': 'Number of Actions'})
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # Recent interactions table
+                st.write("**Recent Interactions**")
+                display_cols = ['timestamp', 'action']
+                if 'brightness' in df.columns:
+                    display_cols.append('brightness')
+                
+                recent_df = df.head(10)[display_cols].copy()
+                if 'timestamp' in recent_df.columns:
+                    recent_df['timestamp'] = recent_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+                st.dataframe(recent_df, use_container_width=True)
         
         # Manual controls
         st.write("**🔧 Manual Controls**")
@@ -686,19 +977,36 @@ class SmartLampDashboard:
         
         with col1:
             if st.button("🎓 Train Model Now"):
-                with st.spinner("Training ML model..."):
-                    time.sleep(2)  # Simulate training
-                    st.success("✅ Model training completed!")
+                if self.hardware and self.hardware.ml:
+                    with st.spinner("Training ML model..."):
+                        success = self.hardware.ml.train_models()
+                        if success:
+                            st.success("✅ Model training completed!")
+                        else:
+                            st.error("❌ Model training failed!")
+                else:
+                    with st.spinner("Training ML model..."):
+                        time.sleep(2)  # Simulate training
+                        st.success("✅ Model training completed! (Demo)")
         
         with col2:
             if st.button("🔄 Refresh Predictions"):
                 st.rerun()
     
     def render_system_info(self):
-        """Render system information"""
+        """Render system information with real data"""
         st.subheader("💻 System Information")
         
-        system_info = self.demo_data.get_system_info()
+        # Get real or demo system info
+        if self.hardware:
+            system_info = self.hardware.get_system_info()
+            if system_info is None:
+                system_info = self.demo_data.get_system_info()
+                st.warning("⚠️ Using demo system data")
+            else:
+                st.success("✅ Real system information")
+        else:
+            system_info = self.demo_data.get_system_info()
         
         col1, col2, col3 = st.columns(3)
         
@@ -804,15 +1112,26 @@ class SmartLampDashboard:
         
         with maint_col1:
             if st.button("🗑️ Cleanup Old Data"):
-                with st.spinner("Cleaning up old data..."):
-                    time.sleep(1)
-                    st.success("✅ Old data cleaned up!")
+                if self.hardware and self.hardware.db:
+                    with st.spinner("Cleaning up old data..."):
+                        self.hardware.db.cleanup_old_data(30)
+                        st.success("✅ Old data cleaned up!")
+                else:
+                    with st.spinner("Cleaning up old data..."):
+                        time.sleep(1)
+                        st.success("✅ Old data cleaned up! (Demo)")
         
         with maint_col2:
             if st.button("🔄 Force Sensor Check"):
-                with st.spinner("Checking all sensors..."):
-                    time.sleep(2)
-                    st.success("✅ All sensors checked!")
+                if self.hardware and self.hardware.sensors:
+                    with st.spinner("Checking all sensors..."):
+                        results = self.hardware.sensors.force_check_all()
+                        success_count = sum(1 for v in results.values() if v)
+                        st.success(f"✅ Sensor check completed! {success_count}/3 sensors responded.")
+                else:
+                    with st.spinner("Checking all sensors..."):
+                        time.sleep(2)
+                        st.success("✅ All sensors checked! (Demo)")
         
         with maint_col3:
             if st.button("📊 Generate Report"):
@@ -840,7 +1159,7 @@ class SmartLampDashboard:
             st.success("✅ All systems operating normally!")
 
 def main():
-    """Main Streamlit app"""
+    """Main Streamlit app with real hardware integration"""
     dashboard = SmartLampDashboard()
     
     # Sidebar navigation
@@ -848,10 +1167,13 @@ def main():
     st.sidebar.markdown("---")
     
     # System status in sidebar
-    if RASPBERRY_PI:
+    if REAL_HARDWARE:
         st.sidebar.success("🍓 Running on Raspberry Pi")
+        st.sidebar.success("🔗 Real Hardware Connected")
+        st.sidebar.info("📍 NeoPixel: GPIO 18, 30 LEDs")
     else:
         st.sidebar.info("🖥️ Demo Mode")
+        st.sidebar.warning("🔌 No Hardware Connected")
     
     page = st.sidebar.selectbox(
         "Navigate to:",
@@ -882,21 +1204,36 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.write("**Quick Stats:**")
     
-    env_data = dashboard.demo_data.get_environmental_data()
+    # Get environmental data
+    if dashboard.hardware:
+        env_data = dashboard.hardware.get_environmental_data()
+        if env_data is None:
+            env_data = dashboard.demo_data.get_environmental_data()
+    else:
+        env_data = dashboard.demo_data.get_environmental_data()
+    
     st.sidebar.write(f"🌡️ Temperature: {env_data['weather']['temperature']}°C")
     st.sidebar.write(f"🌬️ AQI: {env_data['air_quality']['aqi']}")
     
     eq_count = len(env_data['earthquake']['significant_earthquakes'])
     st.sidebar.write(f"🌪️ Earthquakes: {eq_count}")
     
-    # Demo data info
+    # Hardware info in sidebar
     st.sidebar.markdown("---")
-    st.sidebar.write("**Demo Features:**")
-    st.sidebar.write("• 🎛️ Interactive lamp controls")
-    st.sidebar.write("• 📊 Real-time environmental data")
-    st.sidebar.write("• 🤖 ML pattern predictions")
-    st.sidebar.write("• 📈 Usage analytics")
-    st.sidebar.write("• 💻 System monitoring")
+    if REAL_HARDWARE:
+        st.sidebar.write("**Hardware Features:**")
+        st.sidebar.write("• 🎛️ Real-time lamp control")
+        st.sidebar.write("• 📊 Live sensor data")
+        st.sidebar.write("• 🤖 Active ML predictions")
+        st.sidebar.write("• 📈 Real usage analytics")
+        st.sidebar.write("• 💻 System monitoring")
+    else:
+        st.sidebar.write("**Demo Features:**")
+        st.sidebar.write("• 🎛️ Interactive lamp controls")
+        st.sidebar.write("• 📊 Simulated environmental data")
+        st.sidebar.write("• 🤖 ML pattern predictions")
+        st.sidebar.write("• 📈 Usage analytics")
+        st.sidebar.write("• 💻 System monitoring")
     
     # Render header
     dashboard.render_header()
@@ -922,9 +1259,16 @@ def main():
     <div style="text-align: center; color: #666; padding: 20px;">
         🏮 <strong>Smart Lamp Dashboard</strong> | 
         Real-time monitoring and control | 
-        VIP Project 2025
+        VIP Project 2025 | 
+        Compatible with NeoPixel GPIO 18
     </div>
     """, unsafe_allow_html=True)
+
+# Cleanup function for graceful shutdown
+def cleanup():
+    """Cleanup hardware resources on exit"""
+    if 'hardware_manager' in st.session_state:
+        st.session_state.hardware_manager.cleanup()
 
 if __name__ == "__main__":
     main()

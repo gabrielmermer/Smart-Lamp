@@ -19,7 +19,8 @@ from typing import Tuple, Callable, Optional
 try:
     import RPi.GPIO as GPIO
     import spidev
-    from rpi_ws281x import PixelStrip, Color
+    import board
+    import neopixel
     import pygame
     RASPBERRY_PI = True
 except ImportError:
@@ -97,19 +98,17 @@ class HardwareController:
             self.spi = None
     
     def _setup_led_strip(self):
-        """Setup addressable LED strip"""
+        """Setup addressable LED strip using board and neopixel"""
         try:
-            self.led_strip = PixelStrip(
-                hardware.LED_STRIP_COUNT,
-                hardware.LED_STRIP_PIN,
-                800000,  # LED signal frequency in hertz
-                10,      # DMA channel
-                False,   # Invert signal
-                255,     # Brightness
-                0        # Channel
+            # Use board.D18 (GPIO 18) for NeoPixel strip - matching your leader's code
+            self.led_strip = neopixel.NeoPixel(
+                board.D18,  
+                hardware.LED_STRIP_COUNT,  # Number of pixels
+                brightness=1.0,  # Full brightness, we'll control it manually
+                auto_write=False,  # Manual control of when to update
+                pixel_order=neopixel.GRB  # Color order (same as your leader's code)
             )
-            self.led_strip.begin()
-            self.logger.info("LED strip setup completed")
+            self.logger.info("LED strip setup completed with board/neopixel library")
         except Exception as e:
             self.logger.error(f"LED strip setup failed: {e}")
             self.led_strip = None
@@ -162,23 +161,23 @@ class HardwareController:
         return success
     
     def set_led_strip(self, r: int, g: int, b: int):
-        """Set color for entire LED strip"""
+        """Set color for entire LED strip using neopixel library"""
         if not RASPBERRY_PI or not self.led_strip:
             self.logger.info(f"SIMULATION: LED strip set to RGB({r}, {g}, {b})")
             return True
         
         try:
-            color = Color(r, g, b)
+            # Apply brightness factor
             brightness_factor = self.current_brightness / 100.0
+            adjusted_r = int(r * brightness_factor)
+            adjusted_g = int(g * brightness_factor)
+            adjusted_b = int(b * brightness_factor)
             
-            for i in range(hardware.LED_STRIP_COUNT):
-                adjusted_color = Color(
-                    int(r * brightness_factor),
-                    int(g * brightness_factor), 
-                    int(b * brightness_factor)
-                )
-                self.led_strip.setPixelColor(i, adjusted_color)
+            # Set all pixels to the same color
+            for i in range(len(self.led_strip)):
+                self.led_strip[i] = (adjusted_r, adjusted_g, adjusted_b)
             
+            # Update the strip
             self.led_strip.show()
             return True
             
@@ -356,6 +355,39 @@ class HardwareController:
         # Restore original state
         if original_state:
             self.turn_on_leds(*original_color)
+    
+    def rainbow_cycle(self, wait_ms: int = 20, cycles: int = 1):
+        """Create rainbow effect on LED strip (like your leader's code)"""
+        if not RASPBERRY_PI or not self.led_strip:
+            self.logger.info("SIMULATION: Rainbow effect")
+            return
+        
+        try:
+            def wheel(pos):
+                """Generate rainbow colors across 0-255 positions."""
+                if pos < 85:
+                    return (pos * 3, 255 - pos * 3, 0)
+                elif pos < 170:
+                    pos -= 85
+                    return (255 - pos * 3, 0, pos * 3)
+                else:
+                    pos -= 170
+                    return (0, pos * 3, 255 - pos * 3)
+            
+            for cycle in range(cycles):
+                for j in range(256):
+                    for i in range(len(self.led_strip)):
+                        pixel_index = (i * 256 // len(self.led_strip)) + j
+                        color = wheel(pixel_index & 255)
+                        # Apply brightness
+                        brightness_factor = self.current_brightness / 100.0
+                        adjusted_color = tuple(int(c * brightness_factor) for c in color)
+                        self.led_strip[i] = adjusted_color
+                    self.led_strip.show()
+                    time.sleep(wait_ms / 1000.0)
+                    
+        except Exception as e:
+            self.logger.error(f"Rainbow effect failed: {e}")
     
     def get_status(self) -> dict:
         """Get current hardware status"""
