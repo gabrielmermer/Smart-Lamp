@@ -47,7 +47,7 @@ except (ImportError, NotImplementedError):
     REAL_HARDWARE = False
 
 # NeoPixel configuration
-LED_COUNT = 30
+LED_COUNT = 145
 LED_BRIGHTNESS = 1.0
 LED_INVERT = False
 
