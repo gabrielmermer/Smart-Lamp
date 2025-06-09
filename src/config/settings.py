@@ -55,6 +55,9 @@ class Settings:
         self.LOG_FILE_PATH = os.getenv('LOG_FILE_PATH', 'logs/smart_lamp.log')
         self.DATABASE_PATH = os.getenv('DATABASE_PATH', 'data/smart_lamp.db')
         
+        # LED Strip Configuration (for display purposes)
+        self.LED_STRIP_COUNT = int(os.getenv('LED_STRIP_COUNT', 30))
+        
         # Colors (RGB tuples)
         self.DEFAULT_COLOR = self._parse_color(os.getenv('DEFAULT_COLOR_RED', '255'), 
                                                os.getenv('DEFAULT_COLOR_GREEN', '255'), 

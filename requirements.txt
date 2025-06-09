@@ -10,9 +10,9 @@ gpiozero==1.6.2
 adafruit-circuitpython-mcp3xxx==1.4.14
 adafruit-blinka==8.20.0
 
-# LED Control
-rpi-ws281x==4.3.4
+# LED Control (Updated for your team leader's setup)
 adafruit-circuitpython-neopixel==6.3.9
+adafruit-blinka==8.20.0
 
 # API and Web Requests
 requests==2.31.0

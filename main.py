@@ -24,7 +24,7 @@ from pathlib import Path
 # Add src directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.config import settings
+from config import settings
 from src.lamp import LampController
 from src.utils import Utils
 
@@ -232,6 +232,11 @@ class SmartLampApp:
         print(f"   • Log file: {settings.LOG_FILE_PATH}")
         print(f"   • ML model: {settings.ML_MODEL_PATH}")
         print(f"   • Web port: {settings.STREAMLIT_PORT}")
+        
+        # LED Strip info (if available)
+        led_count = getattr(settings, 'LED_STRIP_COUNT', 30)
+        print(f"   • LED Strip: GPIO 18, {led_count} pixels (NeoPixel)")
+        
         print(f"   • Debug mode: {self.debug}")
         print(f"   • Web interface: {'Enabled' if self.enable_web else 'Disabled'}")
         

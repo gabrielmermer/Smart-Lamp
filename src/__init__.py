@@ -6,12 +6,12 @@ Each module is independent and can be used separately.
 """
 
 # Import all main classes for easy access
-from .hardware import HardwareController
-from .sensors import SensorManager
-from .lamp import LampController
-from .ml import MLManager
-from .database import DatabaseManager
-from .utils import Utils
+from hardware import HardwareController
+from sensors import SensorManager
+from lamp import LampController
+from ml import MLManager
+from database import DatabaseManager
+from utils import Utils
 
 # Version info
 __version__ = "1.0.0"
