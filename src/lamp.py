@@ -18,11 +18,11 @@ from datetime import datetime
 from typing import Dict, Tuple, Optional
 
 from config import settings
-from .hardware import HardwareController
-from .sensors import SensorManager
-from .ml import MLManager
-from .database import DatabaseManager
-from .utils import Utils
+from hardware import HardwareController
+from sensors import SensorManager
+from ml import MLManager
+from database import DatabaseManager
+from utils import Utils
 
 class LampController:
     """Main lamp controller - coordinates all functionality"""

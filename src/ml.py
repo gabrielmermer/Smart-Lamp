@@ -21,7 +21,7 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 
 from config import settings
-from .database import DatabaseManager
+from database import DatabaseManager
 
 class MLManager:
     """Simple ML manager for user pattern learning"""
